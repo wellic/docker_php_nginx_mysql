@@ -1,0 +1,6 @@
+
+!.gitkeep
+!.gitignore
+
+/db
+/elasticsearch

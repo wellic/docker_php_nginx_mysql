@@ -1,0 +1,119 @@
+version: "2"
+
+services:
+
+    data_app:
+#        network_mode: bridge
+#        restart: always
+        env_file: .env
+        build:
+            context: .
+            dockerfile: services/app/Dockerfile
+            args: 
+                - DOCKER_GROUP_ID
+                - DOCKER_GROUP_NAME
+                - DOCKER_USER_ID
+                - DOCKER_USER_NAME
+        image:          "${PREFIX}data_app"
+        container_name: "${PREFIX}data_app"
+        hostname:       "${PREFIX}data_app"
+        volumes:
+            - ./data/dev_local:/var/www/dev_local
+        working_dir: /var/www/dev_local
+        user: ${DOCKER_USER_NAME}
+
+    php:
+#        network_mode: bridge
+#        restart: always
+        env_file: .env
+        build:
+            context: .
+            dockerfile: services/php/Dockerfile
+            args: 
+                - DOCKER_GROUP_ID
+                - DOCKER_GROUP_NAME
+                - DOCKER_USER_ID
+                - DOCKER_USER_NAME
+        image:          "${USERNAME}php"
+        container_name: "${PREFIX}php"
+        hostname:       "${PREFIX}php"
+        depends_on:
+            - data_app
+            - mysql
+        links:
+            - mysql
+        volumes_from:
+            - data_app
+        working_dir: /var/www/dev_local
+        volumes:
+            - ./services/php/configs/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+            - ./services/php/configs/custom_xdebug.ini:/usr/local/etc/php/conf.d/99_custom_xdebug.ini
+            - ./services/php/scripts/docker-entrypoint_php.sh:/entrypoint.sh
+        expose:
+            - "9000"
+            - "9001"
+        user: ${DOCKER_USER_NAME}
+        environment:
+            - TERM=xterm
+
+    web_app:
+#        network_mode: bridge
+#        restart: always
+        env_file: .env
+        build:
+            context: .
+            dockerfile: services/nginx/Dockerfile
+            args:
+                - DOCKER_GROUP_ID
+                - DOCKER_GROUP_NAME
+                - DOCKER_USER_ID
+                - DOCKER_USER_NAME
+        image:          "${USERNAME}web_app"
+        container_name: "${PREFIX}web_app"
+        hostname: "${PREFIX}web_app"
+        depends_on:
+            - data_app
+            - php
+            - mysql
+        links:
+            - php
+            - mysql
+        volumes_from:
+            - data_app
+        volumes:
+            - ./logs/nginx:/var/log/nginx
+            - ./services/nginx/configs/nginx.conf:/etc/nginx/nginx.conf
+            - ./services/nginx/configs/dev_local.conf:/etc/nginx/sites-enabled/dev_local.conf
+        volumes_from:
+            - data_app
+        working_dir: /var/www/dev_local
+        ports:
+            - ${WEB_APP_PORT}:80
+        environment:
+            - TERM=xterm
+
+### mysql
+
+    data_mysql:
+##        network_mode: bridge
+##        restart: always
+        env_file: .env
+        image:          "mysql:${MYSQL_VERSION}"
+        container_name: "${PREFIX}mysql_data"
+        hostname:       "${PREFIX}mysql_data"
+        volumes:
+            - ./data/mysql:/var/lib/mysql
+            - ./services/mysql/configs/conf.d:/etc/mysql/conf.d
+        entrypoint: "/bin/bash"
+
+    mysql:
+#        network_mode: bridge
+#        restart: always
+        env_file: .env
+        image:          "mysql:${MYSQL_VERSION}"
+        container_name: "${PREFIX}mysql"
+        hostname:       "${PREFIX}mysql"
+        ports:
+            - "${MYSQL_PORT}:3306"
+        volumes_from:
+            - data_mysql
