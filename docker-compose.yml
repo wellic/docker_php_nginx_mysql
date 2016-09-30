@@ -14,11 +14,12 @@ services:
                 - DOCKER_GROUP_NAME
                 - DOCKER_USER_ID
                 - DOCKER_USER_NAME
-        image:          "${PREFIX}data_app"
-        container_name: "${PREFIX}data_app"
-        hostname:       "${PREFIX}data_app"
+        image:          "${PREFIX_IMAGE}data_app"
+        container_name: "${PREFIX_CONTAINER}data_app"
+        hostname:       "${PREFIX_CONTAINER}data_app"
         volumes:
             - ./data/dev_local:/var/www/dev_local
+            - ./data/.composer:/home/${DOCKER_USER_NAME}/.composer
         working_dir: /var/www/dev_local
         user: ${DOCKER_USER_NAME}
 
@@ -34,9 +35,9 @@ services:
                 - DOCKER_GROUP_NAME
                 - DOCKER_USER_ID
                 - DOCKER_USER_NAME
-        image:          "${USERNAME}php"
-        container_name: "${PREFIX}php"
-        hostname:       "${PREFIX}php"
+        image:          "${PREFIX_IMAGE}php"
+        container_name: "${PREFIX_CONTAINER}php"
+        hostname:       "${PREFIX_CONTAINER}php"
         depends_on:
             - data_app
             - mysql
@@ -68,9 +69,9 @@ services:
                 - DOCKER_GROUP_NAME
                 - DOCKER_USER_ID
                 - DOCKER_USER_NAME
-        image:          "${USERNAME}web_app"
-        container_name: "${PREFIX}web_app"
-        hostname: "${PREFIX}web_app"
+        image:          "${PREFIX_IMAGE}web_app"
+        container_name: "${PREFIX_CONTAINER}web_app"
+        hostname:       "${PREFIX_CONTAINER}web_app"
         depends_on:
             - data_app
             - php
@@ -84,6 +85,7 @@ services:
             - ./logs/nginx:/var/log/nginx
             - ./services/nginx/configs/nginx.conf:/etc/nginx/nginx.conf
             - ./services/nginx/configs/dev_local.conf:/etc/nginx/sites-enabled/dev_local.conf
+            - ./services/nginx/bin:/usr/local/bin
         volumes_from:
             - data_app
         working_dir: /var/www/dev_local
@@ -99,8 +101,8 @@ services:
 ##        restart: always
         env_file: .env
         image:          "mysql:${MYSQL_VERSION}"
-        container_name: "${PREFIX}mysql_data"
-        hostname:       "${PREFIX}mysql_data"
+        container_name: "${PREFIX_CONTAINER}mysql_data"
+        hostname:       "${PREFIX_CONTAINER}mysql_data"
         volumes:
             - ./data/mysql:/var/lib/mysql
             - ./services/mysql/configs/conf.d:/etc/mysql/conf.d
@@ -111,8 +113,8 @@ services:
 #        restart: always
         env_file: .env
         image:          "mysql:${MYSQL_VERSION}"
-        container_name: "${PREFIX}mysql"
-        hostname:       "${PREFIX}mysql"
+        container_name: "${PREFIX_CONTAINER}mysql"
+        hostname:       "${PREFIX_CONTAINER}mysql"
         ports:
             - "${MYSQL_PORT}:3306"
         volumes_from:

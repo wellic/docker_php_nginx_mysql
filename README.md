@@ -7,5 +7,5 @@
 - Add to hosts:
     vhost_add.sh -a dev_local
 - In browse
-    http://dev_local:8080/
+    http://dev_local:8888/
 
