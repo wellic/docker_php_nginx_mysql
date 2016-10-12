@@ -18,10 +18,13 @@ services:
         container_name: "${PREFIX_CONTAINER}data_app"
         hostname:       "${PREFIX_CONTAINER}data_app"
         volumes:
-            - ./data/dev_local:/var/www/dev_local
+            - ./data/www/:/var/www/
             - ./data/.composer:/home/${DOCKER_USER_NAME}/.composer
         working_dir: /var/www/dev_local
         user: ${DOCKER_USER_NAME}
+        networks:
+            dev_network:
+                ipv4_address: ${NET_ADDR}.2
 
     php:
 #        network_mode: bridge
@@ -47,8 +50,8 @@ services:
             - data_app
         working_dir: /var/www/dev_local
         volumes:
-            - ./services/php/configs/custom.ini:/usr/local/etc/php/conf.d/custom.ini
-            - ./services/php/configs/custom_xdebug.ini:/usr/local/etc/php/conf.d/99_custom_xdebug.ini
+            - ./services/php/configs/custom.ini:/usr/local/etc/php/conf.d/zz_custom.ini
+            - ./services/php/configs/custom_xdebug.ini:/usr/local/etc/php/conf.d/zz_custom_xdebug.ini
             - ./services/php/scripts/docker-entrypoint_php.sh:/entrypoint.sh
         expose:
             - "9000"
@@ -56,6 +59,45 @@ services:
         user: ${DOCKER_USER_NAME}
         environment:
             - TERM=xterm
+        extra_hosts:
+            - "test1.dev:${NET_ADDR}.1"
+            - "test2.dev:${NET_ADDR}.1"
+        networks:
+            dev_network:
+                ipv4_address: ${NET_ADDR}.3
+
+
+### mysql
+
+    data_mysql:
+##        network_mode: bridge
+##        restart: always
+        env_file: .env
+        image:          "mysql:${MYSQL_VERSION}"
+        container_name: "${PREFIX_CONTAINER}data_mysql"
+        hostname:       "${PREFIX_CONTAINER}data_mysql"
+        volumes:
+            - ./data/mysql:/var/lib/mysql
+            - ./services/mysql/configs/conf.d:/etc/mysql/conf.d
+        entrypoint: "/bin/bash"
+        networks:
+            dev_network:
+                ipv4_address: ${NET_ADDR}.4
+
+    mysql:
+#        network_mode: bridge
+#        restart: always
+        env_file: .env
+        image:          "mysql:${MYSQL_VERSION}"
+        container_name: "${PREFIX_CONTAINER}mysql"
+        hostname:       "${PREFIX_CONTAINER}mysql"
+        ports:
+            - "${MYSQL_PORT}:3306"
+        volumes_from:
+            - data_mysql
+        networks:
+            dev_network:
+                ipv4_address: ${NET_ADDR}.5
 
     web_app:
 #        network_mode: bridge
@@ -84,7 +126,7 @@ services:
         volumes:
             - ./logs/nginx:/var/log/nginx
             - ./services/nginx/configs/nginx.conf:/etc/nginx/nginx.conf
-            - ./services/nginx/configs/dev_local.conf:/etc/nginx/sites-enabled/dev_local.conf
+            - ./services/nginx/configs/sites-enabled:/etc/nginx/sites-enabled
             - ./services/nginx/bin:/usr/local/bin
         volumes_from:
             - data_app
@@ -93,29 +135,29 @@ services:
             - ${WEB_APP_PORT}:80
         environment:
             - TERM=xterm
+        extra_hosts:
+            - "test1.dev:${NET_ADDR}.1"
+            - "test2.dev:${NET_ADDR}.1"
+        networks:
+            dev_network:
+                ipv4_address: ${NET_ADDR}.1
 
-### mysql
+### Snippet for extra hosts
+#        extra_hosts:
+#            - "test1.dev:${NET_ADDR}.1"
+#            - "test2.dev:${NET_ADDR}.1"
+#        networks:
+#            dev_network:
+#                ipv4_address: ${NET_ADDR}.123
 
-    data_mysql:
-##        network_mode: bridge
-##        restart: always
-        env_file: .env
-        image:          "mysql:${MYSQL_VERSION}"
-        container_name: "${PREFIX_CONTAINER}mysql_data"
-        hostname:       "${PREFIX_CONTAINER}mysql_data"
-        volumes:
-            - ./data/mysql:/var/lib/mysql
-            - ./services/mysql/configs/conf.d:/etc/mysql/conf.d
-        entrypoint: "/bin/bash"
+networks:
+    dev_network:
+        driver: bridge
+        driver_opts:
+            com.docker.network.enable_ipv6: "false"
+        ipam:
+            driver: default
+            config:
+                - subnet:  ${NET_ADDR}.0/24
+                  gateway: ${NET_ADDR}.${NET_GW}
 
-    mysql:
-#        network_mode: bridge
-#        restart: always
-        env_file: .env
-        image:          "mysql:${MYSQL_VERSION}"
-        container_name: "${PREFIX_CONTAINER}mysql"
-        hostname:       "${PREFIX_CONTAINER}mysql"
-        ports:
-            - "${MYSQL_PORT}:3306"
-        volumes_from:
-            - data_mysql
